@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies (future-proof, currently no npm needed)
+node_modules/
+
+# Build output (if any future build tools added)
+dist/
+build/
+
+# Environment（如未来抽离 config 用）
+.env
+.env.local
+
+# Local server cache
+.cache/
