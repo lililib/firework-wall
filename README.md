@@ -95,7 +95,7 @@
    - 等 ~2 分钟项目就绪
 3. 进入项目 → 左侧 **Project Settings** → **API**
    - 复制 `Project URL`
-   - 复制 `Publishable key`（不是 secret key！）
+   - 复制 `Publishable key`
 
 ### 3️⃣ 创建 GitHub OAuth App（5 分钟）
 

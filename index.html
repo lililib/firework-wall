@@ -3,54 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎆 烟花寄语墙 | Firework Wall</title>
-  <meta name="description" content="实时全网投屏的寄语烟花墙 — 输入文字，绽放成烟花，与所有在线访客同框。基于 Supabase 一站式架构，零后端运维。">
+  <title>烟花寄语墙 · Firework Wall</title>
+  <meta name="description" content="实时投屏的寄语烟花墙 — 输入文字，绽放成烟花，与所有访客同框。">
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+  <!-- ===== 背景层 ===== -->
   <div id="sky"></div>
   <canvas id="fireworksCanvas"></canvas>
   <canvas id="textCanvas"></canvas>
 
-  <!-- 顶部按钮区 -->
-  <header class="top-bar">
-    <a href="https://github.com/lililib/firework-wall" class="back-home" target="_blank" rel="noopener" title="GitHub Repository">⭐ GitHub</a>
-    <div class="action-group">
-      <button id="replayAllBtn" class="btn-ghost" title="重放所有人的寄语">🔁 重放所有</button>
-      <button id="replayMineBtn" class="btn-ghost" title="登录后可见" disabled>👤 重放自己</button>
-      <button id="wallBtn" class="btn-ghost" title="留言墙">📜 留言墙</button>
-    </div>
-    <div class="user-area">
-      <div id="onlineCountWrap">
-        <span class="dot"></span>
-        <span>在线 <span id="onlineCount">0</span></span>
-      </div>
-      <div id="loginStatus"><span class="muted">未登录</span></div>
-      <button id="loginBtn" class="btn-primary-sm" data-action="login">登录 GitHub</button>
-    </div>
-  </header>
-
-  <!-- 底部输入 UI -->
-  <div id="ui-container">
-    <input type="text" id="messageInput" placeholder="输入寄语 (登录后可永久保存)..." maxlength="10" autocomplete="off">
-    <button id="launchBtn">🎆 即时燃放</button>
+  <!-- ===== HUD 装饰层（四角 L + 上下渐变细线） ===== -->
+  <div class="hud-layer">
+    <span class="hud-corner tl"></span>
+    <span class="hud-corner tr"></span>
+    <span class="hud-corner bl"></span>
+    <span class="hud-corner br"></span>
   </div>
-  <p id="hint">未登录 — 仅本次广播。<a href="javascript:document.getElementById('loginBtn').click()">登录可永久留念 →</a></p>
 
-  <!-- 留言墙抽屉 -->
+  <!-- ===== 左上品牌 ===== -->
+  <div class="brand">
+    <h1 class="brand-title">烟 花 寄 语 墙</h1>
+    <p class="brand-sub">FIREWORK · WALL</p>
+  </div>
+
+  <!-- ===== 右上信息条 ===== -->
+  <div class="info-bar">
+    <div class="chip" id="onlineChip">
+      <span class="dot"></span>
+      <span>在线 <span id="onlineCount">0</span></span>
+    </div>
+    <div class="chip" id="loginChip">
+      <span class="muted">未登录</span>
+    </div>
+    <button id="loginBtn" class="btn-login" data-action="login">登录 GitHub</button>
+
+    <!-- GitHub 仓库链接 -->
+    <a class="icon-btn" href="https://github.com/lililib/firework-wall" target="_blank" rel="noopener" title="GitHub Repository" aria-label="GitHub Repository">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
+    </a>
+
+    <!-- 菜单按钮（展开 3 个操作） -->
+    <button class="icon-btn" id="menuBtn" aria-label="菜单" title="操作">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="4" y1="7"  x2="20" y2="7"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="17" x2="20" y2="17"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ===== 操作下拉 ===== -->
+  <div class="action-menu" id="actionMenu" role="menu" aria-hidden="true">
+    <button id="replayAllBtn" type="button">
+      <svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+      <span>重放所有寄语</span>
+    </button>
+    <button id="replayMineBtn" type="button" disabled title="登录后可见">
+      <svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>重放自己的烟花</span>
+    </button>
+    <button id="wallBtn" type="button">
+      <svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+      <span>留言墙</span>
+    </button>
+  </div>
+
+  <!-- ===== 底部输入区 ===== -->
+  <div class="input-zone">
+    <div class="elegant-input-wrap">
+      <input type="text" id="messageInput" class="elegant-input" placeholder="书 写 你 的 寄 语" maxlength="10" autocomplete="off">
+      <span class="input-counter" id="inputCounter">0 / 10</span>
+      <p class="input-hint" id="hint">未登录 · 仅本次广播　<a href="javascript:document.getElementById('loginBtn').click()">登录可永久留念 →</a></p>
+    </div>
+    <button id="launchBtn" class="btn-launch">即 时 燃 放</button>
+  </div>
+
+  <!-- ===== 右下角场景切换 Dock ===== -->
+  <div class="theme-dock-container">
+    <div class="theme-dock" id="themeDock" role="listbox" aria-label="场景切换"></div>
+    <button class="icon-btn" id="themeDockBtn" aria-label="切换场景" title="切换场景">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ===== 留言墙抽屉 ===== -->
   <aside id="messageWall" class="drawer" aria-hidden="true">
     <header class="drawer-header">
-      <h2>📜 留言墙</h2>
+      <h2>留 言 墙</h2>
       <button id="drawerCloseBtn" class="close-btn" aria-label="关闭">×</button>
     </header>
     <ul id="drawerList" class="drawer-list">
-      <li class="loading">加载中...</li>
+      <li class="loading">加 载 中</li>
     </ul>
   </aside>
 
-  <!-- Toast 提示 -->
-  <div id="toast" role="status" aria-live="polite"></div>
+  <!-- ===== Toast ===== -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="./main.js"></script>
 </body>

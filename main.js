@@ -1,27 +1,33 @@
 // ============================================================
 // 主入口：连接所有模块、绑定 UI 事件
 // ============================================================
-import { supabase, ensureConfigured } from './supabase-client.js';
+import { supabase } from './supabase-client.js';
 import { login, logout, onAuthChange, getCurrentUser } from './auth.js';
 import { subscribeFireworks, broadcastTempFirework, subscribePresence } from './realtime.js';
-import { initFireworkEngine, createFirework } from './firework-engine.js';
+import { initFireworkEngine, createFirework, setScene, pickSceneColor } from './firework-engine.js';
 import { replayAll, replayMine, loadMessageWall } from './replay.js';
+import { initThemeDock, getSavedSceneKey, getSceneByKey } from './theme-dock.js';
 
 const RATE_LIMIT_MS = 2000;
 const LOCAL_HISTORY_KEY = 'myFireworks';
 const LOCAL_HISTORY_MAX = 50;
+const MSG_MAX = 10;
 
 // ===== DOM =====
 const $ = (id) => document.getElementById(id);
 const els = {
   canvas: $('fireworksCanvas'),
   textCanvas: $('textCanvas'),
+  sky: $('sky'),
   input: $('messageInput'),
+  inputCounter: $('inputCounter'),
   launchBtn: $('launchBtn'),
   loginBtn: $('loginBtn'),
-  loginStatus: $('loginStatus'),
+  loginChip: $('loginChip'),
   onlineCount: $('onlineCount'),
   hint: $('hint'),
+  menuBtn: $('menuBtn'),
+  actionMenu: $('actionMenu'),
   replayAllBtn: $('replayAllBtn'),
   replayMineBtn: $('replayMineBtn'),
   wallBtn: $('wallBtn'),
@@ -29,12 +35,11 @@ const els = {
   drawerCloseBtn: $('drawerCloseBtn'),
   drawerList: $('drawerList'),
   toast: $('toast'),
+  themeDockBtn: $('themeDockBtn'),
+  themeDock: $('themeDock'),
 };
 
-// ===== 初始化烟花动画引擎 =====
-initFireworkEngine(els.canvas, els.textCanvas);
-
-// ===== Toast =====
+// ===== Toast（必须在 initThemeDock 之前定义，否则 TDZ 报错会中止初始化）=====
 let toastTimer = null;
 function showToast(text, ms = 2000) {
   els.toast.textContent = text;
@@ -42,6 +47,32 @@ function showToast(text, ms = 2000) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => els.toast.classList.remove('show'), ms);
 }
+
+// ===== 初始化烟花引擎 =====
+initFireworkEngine(els.canvas, els.textCanvas);
+setScene(getSceneByKey(getSavedSceneKey()));
+
+// ===== 初始化场景切换 Dock =====
+let sceneInitialized = false;
+initThemeDock({
+  btn: els.themeDockBtn,
+  dock: els.themeDock,
+  sky: els.sky,
+  onChange: (scene) => {
+    setScene(scene);
+    // 首次应用（页面加载恢复）不弹 toast；用户主动切换才弹
+    if (sceneInitialized) showToast(`场 景 · ${scene.name}`);
+    sceneInitialized = true;
+  },
+});
+
+// ===== 字符计数 =====
+function updateCounter() {
+  const len = els.input.value.length;
+  els.inputCounter.textContent = `${len} / ${MSG_MAX}`;
+}
+els.input.addEventListener('input', updateCounter);
+updateCounter();
 
 // ===== 本地历史 =====
 function recordToLocal(message) {
@@ -55,25 +86,28 @@ function recordToLocal(message) {
 
 // ===== 登录态 → UI 同步 =====
 onAuthChange((user) => {
+  // 用 class 切换 chip 显隐，避免 inline style 残留覆盖 stylesheet 的 display:inline-flex
+  els.loginChip.classList.toggle('is-hidden', !user);
+
   if (user) {
     const name = user.user_metadata?.user_name || user.email || '已登录';
     const avatar = user.user_metadata?.avatar_url;
-    els.loginStatus.innerHTML = avatar
+    els.loginChip.innerHTML = avatar
       ? `<img src="${avatar}" class="avatar" alt=""><span>${name}</span>`
       : `<span>${name}</span>`;
     els.loginBtn.textContent = '登出';
     els.loginBtn.dataset.action = 'logout';
-    els.launchBtn.textContent = '🎆 燃放并永久留念';
-    els.input.placeholder = '输入寄语 (最多10字)...';
+    els.launchBtn.textContent = '燃 放 留 念';
+    els.input.placeholder = '书 写 你 的 寄 语';
     els.replayMineBtn.removeAttribute('disabled');
     els.replayMineBtn.title = '重放自己发过的烟花';
     els.hint.style.display = 'none';
   } else {
-    els.loginStatus.innerHTML = '<span class="muted">未登录</span>';
+    // 未登录：chip 已通过 is-hidden 隐藏，避免与 "登录 GitHub" 按钮重复
     els.loginBtn.textContent = '登录 GitHub';
     els.loginBtn.dataset.action = 'login';
-    els.launchBtn.textContent = '🎆 即时燃放';
-    els.input.placeholder = '输入寄语 (登录后可永久保存)...';
+    els.launchBtn.textContent = '即 时 燃 放';
+    els.input.placeholder = '书 写 你 的 寄 语';
     els.replayMineBtn.setAttribute('disabled', '');
     els.replayMineBtn.title = '登录后可见';
     els.hint.style.display = '';
@@ -82,39 +116,36 @@ onAuthChange((user) => {
 
 // ===== 登录/登出按钮 =====
 els.loginBtn.addEventListener('click', () => {
-  if (els.loginBtn.dataset.action === 'logout') {
-    logout();
-  } else {
-    login();
-  }
+  if (els.loginBtn.dataset.action === 'logout') logout();
+  else login();
 });
 
 // ===== 燃放烟花 =====
 let lastLaunchAt = 0;
-
 async function handleLaunch() {
   const now = Date.now();
   if (now - lastLaunchAt < RATE_LIMIT_MS) {
-    showToast('稍等一下再发哦~');
+    showToast('稍 等 一 下 再 发');
     return;
   }
-  const message = els.input.value.trim().slice(0, 10);
+  const message = els.input.value.trim().slice(0, MSG_MAX);
   if (!message) {
     els.input.focus();
     return;
   }
   lastLaunchAt = now;
 
-  const color = `hsl(${Math.floor(Math.random() * 360)}, 100%, 60%)`;
+  // 颜色走当前场景调色板（保留每发烟花的一致色）
+  const color = pickSceneColor();
 
-  // 1. 本地立刻燃放（无延迟体验）
+  // 1. 本地立刻燃放
   createFirework(message, color);
   els.input.value = '';
+  updateCounter();
   recordToLocal(message);
 
   const user = getCurrentUser();
   if (user) {
-    // 2a. 已登录：写库 → Realtime 自动广播 INSERT
     const { error } = await supabase.from('fireworks').insert({
       message,
       color,
@@ -124,12 +155,11 @@ async function handleLaunch() {
     });
     if (error) {
       console.error(error);
-      showToast('保存失败: ' + error.message, 3000);
+      showToast('保 存 失 败 · ' + error.message, 3000);
     } else {
-      showToast('✨ 寄语已永久保存');
+      showToast('已 永 久 保 存');
     }
   } else {
-    // 2b. 未登录：临时广播
     broadcastTempFirework(message, color, '游客');
   }
 }
@@ -141,12 +171,8 @@ els.input.addEventListener('keypress', (e) => {
 
 // ===== 订阅其他用户的烟花 =====
 subscribeFireworks(({ message, color, user_id, source }) => {
-  // 自己发的持久化消息会通过 Realtime 回声 → 跳过避免重复渲染
-  // (本地已即时渲染过；broadcast 默认不回声故无需处理)
   const me = getCurrentUser();
-  if (source === 'persisted' && me && user_id === me.id) {
-    return;
-  }
+  if (source === 'persisted' && me && user_id === me.id) return;
   createFirework(message, color);
 });
 
@@ -155,15 +181,34 @@ subscribePresence((count) => {
   els.onlineCount.textContent = count;
 });
 
-// ===== 重放按钮 =====
-els.replayAllBtn.addEventListener('click', replayAll);
+// ===== 操作菜单（重放所有 / 重放自己 / 留言墙） =====
+function setMenuOpen(open) {
+  els.actionMenu.classList.toggle('open', open);
+  els.actionMenu.setAttribute('aria-hidden', String(!open));
+}
+els.menuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setMenuOpen(!els.actionMenu.classList.contains('open'));
+});
+document.addEventListener('click', (e) => {
+  if (!els.actionMenu.contains(e.target) && e.target !== els.menuBtn) {
+    setMenuOpen(false);
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') setMenuOpen(false);
+});
+
+els.replayAllBtn.addEventListener('click', () => { setMenuOpen(false); replayAll(); });
 els.replayMineBtn.addEventListener('click', () => {
+  setMenuOpen(false);
   if (els.replayMineBtn.hasAttribute('disabled')) {
-    showToast('登录后可重放自己的烟花');
+    showToast('登 录 后 可 重 放 自 己 的 烟 花');
     return;
   }
   replayMine();
 });
+els.wallBtn.addEventListener('click', () => { setMenuOpen(false); openDrawer(); });
 
 // ===== 留言墙抽屉 =====
 function formatRelativeTime(iso) {
@@ -187,10 +232,10 @@ function escapeHtml(str) {
 
 async function openDrawer() {
   els.drawer.classList.add('open');
-  els.drawerList.innerHTML = '<li class="loading">加载中...</li>';
+  els.drawerList.innerHTML = '<li class="loading">加 载 中</li>';
   const list = await loadMessageWall();
   if (list.length === 0) {
-    els.drawerList.innerHTML = '<li class="empty">还没有人发过烟花，期待你的第一发 🎆</li>';
+    els.drawerList.innerHTML = '<li class="empty">还 没 有 寄 语 · 期 待 你 的 第 一 发</li>';
     return;
   }
   els.drawerList.innerHTML = list
@@ -205,15 +250,10 @@ async function openDrawer() {
       </li>`)
     .join('');
 }
-
-function closeDrawer() {
-  els.drawer.classList.remove('open');
-}
-
-els.wallBtn.addEventListener('click', openDrawer);
+function closeDrawer() { els.drawer.classList.remove('open'); }
 els.drawerCloseBtn.addEventListener('click', closeDrawer);
 
-// ===== 全局错误提示（未配置 Supabase）=====
+// ===== 全局错误提示 =====
 if (!supabase) {
-  showToast('⚠️ 请先在 supabase-client.js 填入凭据', 5000);
+  showToast('请 先 在 supabase-client.js 填 入 凭 据', 5000);
 }

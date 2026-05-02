@@ -1,6 +1,10 @@
 // ============================================================
-// 烟花动画引擎（迁移自 firework-message/public/app.js）
-// 公开 API: initFireworkEngine(canvasEl, textCanvasEl), createFirework(message, color)
+// 烟花动画引擎
+// 公开 API:
+//   initFireworkEngine(canvasEl, textCanvasEl)
+//   createFirework(message, color)     // 仍兼容传入指定颜色
+//   setScene(scene)                    // 切换星空密度 / 烟花调色板 / 星色
+//   pickSceneColor()                   // 从当前场景调色板随机取色
 // ============================================================
 
 let canvas, ctx, textCanvas, textCtx;
@@ -8,75 +12,96 @@ let width = 0, height = 0;
 
 const fireworks = [];
 const particles = [];
-const stars = [];
+let stars = [];
 
+/* ------------------ 当前场景态（由 setScene 注入） ------------------ */
+let currentScene = {
+  key: 'default',
+  palette: ['#ff007f', '#ff7f00', '#ffe600', '#7dffae', '#7da8ff'],
+  starDensity: 150,
+  starColor: 'rgba(255,255,255,0.9)',
+};
+
+export function setScene(scene) {
+  currentScene = { ...currentScene, ...scene };
+  rebuildStars();
+}
+
+export function pickSceneColor() {
+  const p = currentScene.palette;
+  return p[Math.floor(Math.random() * p.length)];
+}
+
+/* ------------------ 画布 / 星空 ------------------ */
 function resizeCanvas() {
   width = window.innerWidth;
   height = window.innerHeight;
   canvas.width = width;
   canvas.height = height;
+  rebuildStars();
 }
 
-function initStars() {
-  stars.length = 0;
-  for (let i = 0; i < 150; i++) {
-    stars.push({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      r: Math.random() * 1.5,
-      alpha: Math.random()
-    });
-  }
+function rebuildStars() {
+  const n = currentScene.starDensity || 150;
+  stars = new Array(n).fill(0).map(() => ({
+    x: Math.random() * width,
+    y: Math.random() * height * 0.7,
+    r: Math.random() * 1.4 + 0.2,
+    alpha: Math.random() * 0.7 + 0.3,
+    twinkle: (Math.random() - 0.5) * 0.04,
+  }));
 }
 
 function drawStars() {
-  stars.forEach(star => {
+  ctx.fillStyle = currentScene.starColor || 'rgba(255,255,255,0.9)';
+  for (const star of stars) {
+    star.alpha += star.twinkle;
+    if (star.alpha < 0.15) { star.alpha = 0.15; star.twinkle = Math.abs(star.twinkle); }
+    if (star.alpha > 1)    { star.alpha = 1;    star.twinkle = -Math.abs(star.twinkle); }
+    ctx.globalAlpha = star.alpha;
     ctx.beginPath();
     ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
     ctx.fill();
-    star.alpha += (Math.random() - 0.5) * 0.05;
-    if (star.alpha < 0.1) star.alpha = 0.1;
-    if (star.alpha > 1) star.alpha = 1;
-  });
+  }
+  ctx.globalAlpha = 1;
 }
 
-// 提取文字像素坐标，作为粒子目标位置
+/* ------------------ 文字像素提取 ------------------ */
 function getTextParticles(text, centerX, centerY) {
   const fontSize = Math.min(width / Math.max(text.length, 1), 120);
   textCanvas.width = width;
   textCanvas.height = height;
 
   textCtx.clearRect(0, 0, width, height);
-  textCtx.font = `bold ${fontSize}px "Microsoft YaHei", sans-serif`;
+  textCtx.font = `500 ${fontSize}px "Noto Serif SC", "Microsoft YaHei", sans-serif`;
   textCtx.fillStyle = 'white';
   textCtx.textAlign = 'center';
   textCtx.textBaseline = 'middle';
   textCtx.fillText(text, width / 2, height / 2);
 
   const imgData = textCtx.getImageData(0, 0, width, height).data;
-  const targetParticles = [];
-
-  const gap = 4; // 粒子密度
+  const targets = [];
+  const gap = 4;
   for (let y = 0; y < height; y += gap) {
     for (let x = 0; x < width; x += gap) {
-      const index = (y * width + x) * 4;
-      const alpha = imgData[index + 3];
-      if (alpha > 128) {
-        const targetX = x - width / 2 + centerX;
-        const targetY = y - height / 2 + centerY;
-        targetParticles.push({ x: targetX, y: targetY });
+      const idx = (y * width + x) * 4;
+      if (imgData[idx + 3] > 128) {
+        targets.push({
+          x: x - width / 2 + centerX,
+          y: y - height / 2 + centerY,
+        });
       }
     }
   }
-  return targetParticles;
+  return targets;
 }
 
+/* ------------------ 烟花 / 粒子 ------------------ */
 class Firework {
   constructor(message, color) {
-    this.x = width / 2;
+    this.x = width / 2 + (Math.random() - 0.5) * (width * 0.5);
     this.y = height;
-    this.targetX = width / 2 + (Math.random() - 0.5) * 200;
+    this.targetX = this.x + (Math.random() - 0.5) * 200;
     this.targetY = height * 0.2 + Math.random() * (height * 0.2);
     this.color = color;
     this.message = message;
@@ -84,7 +109,6 @@ class Firework {
     this.angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
     this.vx = Math.cos(this.angle) * this.speed;
     this.vy = Math.sin(this.angle) * this.speed;
-    this.exploded = false;
     this.trail = [];
   }
 
@@ -94,7 +118,7 @@ class Firework {
 
     this.x += this.vx;
     this.y += this.vy;
-    this.vy += 0.05; // 重力
+    this.vy += 0.05;
 
     if (this.vy >= 0 || this.y <= this.targetY) {
       this.explode();
@@ -107,9 +131,7 @@ class Firework {
     if (this.trail.length === 0) return;
     ctx.beginPath();
     ctx.moveTo(this.trail[0].x, this.trail[0].y);
-    for (let i = 1; i < this.trail.length; i++) {
-      ctx.lineTo(this.trail[i].x, this.trail[i].y);
-    }
+    for (let i = 1; i < this.trail.length; i++) ctx.lineTo(this.trail[i].x, this.trail[i].y);
     ctx.strokeStyle = this.color;
     ctx.lineWidth = 3;
     ctx.stroke();
@@ -121,22 +143,19 @@ class Firework {
   }
 
   explode() {
-    const targetPositions = getTextParticles(this.message, this.x, this.y);
-
-    // 文字为空或没有有效像素 → 圆形爆炸
-    if (targetPositions.length === 0) {
+    const targets = getTextParticles(this.message, this.x, this.y);
+    if (targets.length === 0) {
       for (let i = 0; i < 100; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        targetPositions.push({
-          x: this.x + Math.cos(angle) * 100,
-          y: this.y + Math.sin(angle) * 100
+        const a = Math.random() * Math.PI * 2;
+        targets.push({
+          x: this.x + Math.cos(a) * 100,
+          y: this.y + Math.sin(a) * 100,
         });
       }
     }
-
-    targetPositions.forEach(target => {
-      particles.push(new Particle(this.x, this.y, target.x, target.y, this.color));
-    });
+    for (const t of targets) {
+      particles.push(new Particle(this.x, this.y, t.x, t.y, this.color));
+    }
   }
 }
 
@@ -157,7 +176,7 @@ class Particle {
     this.gravity = 0.05;
     this.life = 270;
     this.maxLife = 270;
-    this.state = 'explode'; // explode → form → fade
+    this.state = 'explode';
     this.delay = Math.random() * 20;
   }
 
@@ -168,25 +187,20 @@ class Particle {
       this.vy += this.gravity;
       this.x += this.vx;
       this.y += this.vy;
-
       this.delay--;
       if (this.delay <= 0 && Math.abs(this.vx) < 1 && Math.abs(this.vy) < 1) {
         this.state = 'form';
       }
     } else if (this.state === 'form') {
-      const dx = this.targetX - this.x;
-      const dy = this.targetY - this.y;
-      this.x += dx * 0.05;
-      this.y += dy * 0.05;
+      this.x += (this.targetX - this.x) * 0.05;
+      this.y += (this.targetY - this.y) * 0.05;
       this.y += Math.sin(Date.now() / 200 + this.x) * 0.2;
-
       this.life--;
       if (this.life <= 30) this.state = 'fade';
-    } else if (this.state === 'fade') {
+    } else {
       this.y += 0.5;
       this.life--;
     }
-
     return this.life > 0;
   }
 
@@ -194,7 +208,7 @@ class Particle {
     const alpha = Math.max(0, this.life / this.maxLife);
     ctx.globalAlpha = alpha;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, 1.5, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, 1.6, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
     ctx.fill();
     ctx.globalAlpha = 1;
@@ -204,34 +218,25 @@ class Particle {
 function animate() {
   requestAnimationFrame(animate);
 
-  // 拖尾擦除效果
+  // 拖尾擦除
   ctx.globalCompositeOperation = 'destination-out';
   ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
   ctx.fillRect(0, 0, width, height);
 
   ctx.globalCompositeOperation = 'lighter';
-
   drawStars();
 
   for (let i = fireworks.length - 1; i >= 0; i--) {
-    if (!fireworks[i].update()) {
-      fireworks.splice(i, 1);
-    } else {
-      fireworks[i].draw();
-    }
+    if (!fireworks[i].update()) fireworks.splice(i, 1);
+    else fireworks[i].draw();
   }
-
   for (let i = particles.length - 1; i >= 0; i--) {
-    if (!particles[i].update()) {
-      particles.splice(i, 1);
-    } else {
-      particles[i].draw();
-    }
+    if (!particles[i].update()) particles.splice(i, 1);
+    else particles[i].draw();
   }
 }
 
-// ===== 公开 API =====
-
+/* ------------------ 公开 API ------------------ */
 export function initFireworkEngine(canvasEl, textCanvasEl) {
   canvas = canvasEl;
   ctx = canvas.getContext('2d');
@@ -239,11 +244,10 @@ export function initFireworkEngine(canvasEl, textCanvasEl) {
   textCtx = textCanvas.getContext('2d', { willReadFrequently: true });
 
   resizeCanvas();
-  initStars();
   window.addEventListener('resize', resizeCanvas);
   animate();
 }
 
 export function createFirework(message, color) {
-  fireworks.push(new Firework(message, color));
+  fireworks.push(new Firework(message, color || pickSceneColor()));
 }

@@ -1,0 +1,60 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="center-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 256) rotate(90) scale(120)">
+      <stop stop-color="#FFF7CC" />
+      <stop offset="0.5" stop-color="#FFDD00" />
+      <stop offset="1" stop-color="#FF9900" />
+    </radialGradient>
+    <linearGradient id="petal-warm" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FF5E00" />
+      <stop offset="1" stop-color="#FF0055" />
+    </linearGradient>
+    <linearGradient id="petal-cool" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#00EEFF" />
+      <stop offset="1" stop-color="#8800FF" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Central bright core -->
+  <circle cx="256" cy="256" r="60" fill="url(#center-glow)" filter="drop-shadow(0 0 10px rgba(255, 200, 0, 0.5))" />
+
+  <!-- Inner Burst (Warm colors) -->
+  <g transform="translate(256 256)">
+    <!-- 0 deg -->
+    <path d="M0 -70 Q20 -120 0 -170 Q-20 -120 0 -70 Z" fill="url(#petal-warm)" />
+    <!-- 45 deg -->
+    <path d="M0 -70 Q20 -120 0 -170 Q-20 -120 0 -70 Z" fill="url(#petal-warm)" transform="rotate(45)" />
+    <!-- 90 deg -->
+    <path d="M0 -70 Q20 -120 0 -170 Q-20 -120 0 -70 Z" fill="url(#petal-warm)" transform="rotate(90)" />
+    <!-- 135 deg -->
+    <path d="M0 -70 Q20 -120 0 -170 Q-20 -120 0 -70 Z" fill="url(#petal-warm)" transform="rotate(135)" />
+    <!-- 180 deg -->
+    <path d="M0 -70 Q20 -120 0 -170 Q-20 -120 0 -70 Z" fill="url(#petal-warm)" transform="rotate(180)" />
+    <!-- 225 deg -->
+    <path d="M0 -70 Q20 -120 0 -170 Q-20 -120 0 -70 Z" fill="url(#petal-warm)" transform="rotate(225)" />
+    <!-- 270 deg -->
+    <path d="M0 -70 Q20 -120 0 -170 Q-20 -120 0 -70 Z" fill="url(#petal-warm)" transform="rotate(270)" />
+    <!-- 315 deg -->
+    <path d="M0 -70 Q20 -120 0 -170 Q-20 -120 0 -70 Z" fill="url(#petal-warm)" transform="rotate(315)" />
+  </g>
+
+  <!-- Outer Sparks (Cool colors) -->
+  <g transform="translate(256 256) rotate(22.5)">
+    <circle cx="0" cy="-200" r="15" fill="url(#petal-cool)" />
+    <circle cx="0" cy="-200" r="15" fill="url(#petal-cool)" transform="rotate(45)" />
+    <circle cx="0" cy="-200" r="15" fill="url(#petal-cool)" transform="rotate(90)" />
+    <circle cx="0" cy="-200" r="15" fill="url(#petal-cool)" transform="rotate(135)" />
+    <circle cx="0" cy="-200" r="15" fill="url(#petal-cool)" transform="rotate(180)" />
+    <circle cx="0" cy="-200" r="15" fill="url(#petal-cool)" transform="rotate(225)" />
+    <circle cx="0" cy="-200" r="15" fill="url(#petal-cool)" transform="rotate(270)" />
+    <circle cx="0" cy="-200" r="15" fill="url(#petal-cool)" transform="rotate(315)" />
+  </g>
+  
+  <!-- Extra details - small stars -->
+  <g transform="translate(256 256)">
+     <circle cx="100" cy="100" r="5" fill="white" opacity="0.8" />
+     <circle cx="-100" cy="100" r="5" fill="white" opacity="0.8" />
+     <circle cx="100" cy="-100" r="5" fill="white" opacity="0.8" />
+     <circle cx="-100" cy="-100" r="5" fill="white" opacity="0.8" />
+  </g>
+</svg>
