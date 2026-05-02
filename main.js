@@ -4,7 +4,7 @@
 import { supabase } from './supabase-client.js';
 import { loginWithGitHub, loginWithGoogle, logout, onAuthChange, getCurrentUser } from './auth.js';
 import { subscribeFireworks, broadcastTempFirework, subscribePresence } from './realtime.js';
-import { initFireworkEngine, createFirework, setScene, pickSceneColor } from './firework-engine.js';
+import { initFireworkEngine, createFirework, createFireworkFromImage, setScene, pickSceneColor, introFirework } from './firework-engine.js';
 import { replayAll, replayMine, loadMessageWall } from './replay.js';
 import { initThemeDock, getSavedSceneKey, getSceneByKey } from './theme-dock.js';
 
@@ -27,6 +27,10 @@ const els = {
   loginMenu: $('loginMenu'),
   loginGoogleBtn: $('loginGoogleBtn'),
   loginGithubBtn: $('loginGithubBtn'),
+  avatarWrap: $('avatarWrap'),
+  avatarArrow: $('avatarArrow'),
+  avatarMenu: $('avatarMenu'),
+  logoutBtn: $('logoutBtn'),
   loginChip: $('loginChip'),
   onlineCount: $('onlineCount'),
   hint: $('hint'),
@@ -41,6 +45,7 @@ const els = {
   toast: $('toast'),
   themeDockBtn: $('themeDockBtn'),
   themeDock: $('themeDock'),
+  imageInput: $('imageInput'),
 };
 
 // ===== Toast（必须在 initThemeDock 之前定义，否则 TDZ 报错会中止初始化）=====
@@ -55,6 +60,7 @@ function showToast(text, ms = 2000) {
 // ===== 初始化烟花引擎 =====
 initFireworkEngine(els.canvas, els.textCanvas);
 setScene(getSceneByKey(getSavedSceneKey()));
+setTimeout(introFirework, 600); // 进场烟花：页面加载后 0.6s 触发
 
 // ===== 初始化场景切换 Dock =====
 let sceneInitialized = false;
@@ -90,9 +96,6 @@ function recordToLocal(message) {
 
 // ===== 登录态 → UI 同步 =====
 onAuthChange((user) => {
-  // 用 class 切换 chip 显隐，避免 inline style 残留覆盖 stylesheet 的 display:inline-flex
-  els.loginChip.classList.toggle('is-hidden', !user);
-
   if (user) {
     // Google 用 full_name，GitHub 用 user_name
     const name = user.user_metadata?.user_name || user.user_metadata?.full_name || user.email || '已登录';
@@ -100,19 +103,18 @@ onAuthChange((user) => {
     els.loginChip.innerHTML = avatar
       ? `<img src="${avatar}" class="avatar" alt=""><span>${name}</span>`
       : `<span>${name}</span>`;
-    els.loginBtn.textContent = '登出';
-    els.loginBtn.dataset.action = 'logout';
+    els.avatarWrap.classList.add('visible');
+    els.loginWrap.classList.add('is-hidden');
     closeLoginMenu();
     els.launchBtn.textContent = '燃 放 留 念';
-    els.input.placeholder = '书 写 你 的 寄 语';
     els.replayMineBtn.removeAttribute('disabled');
     els.replayMineBtn.title = '重放自己发过的烟花';
     els.hint.style.display = 'none';
   } else {
-    els.loginBtn.textContent = '登录';
-    els.loginBtn.dataset.action = 'login';
+    els.avatarWrap.classList.remove('visible');
+    els.loginWrap.classList.remove('is-hidden');
+    closeAvatarMenu();
     els.launchBtn.textContent = '即 时 燃 放';
-    els.input.placeholder = '书 写 你 的 寄 语';
     els.replayMineBtn.setAttribute('disabled', '');
     els.replayMineBtn.title = '登录后可见';
     els.hint.style.display = '';
@@ -130,15 +132,29 @@ function toggleLoginMenu() {
   els.loginMenu.setAttribute('aria-hidden', String(!willOpen));
 }
 
-els.loginBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (els.loginBtn.dataset.action === 'logout') logout();
-  else toggleLoginMenu();
-});
+els.loginBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleLoginMenu(); });
 els.loginGoogleBtn.addEventListener('click', () => { closeLoginMenu(); loginWithGoogle(); });
 els.loginGithubBtn.addEventListener('click', () => { closeLoginMenu(); loginWithGitHub(); });
+
+// ===== 头像区登出下拉 =====
+function closeAvatarMenu() {
+  els.avatarMenu.classList.remove('open');
+  els.avatarMenu.setAttribute('aria-hidden', 'true');
+  els.avatarArrow.classList.remove('is-open');
+}
+function toggleAvatarMenu() {
+  const willOpen = !els.avatarMenu.classList.contains('open');
+  els.avatarMenu.classList.toggle('open', willOpen);
+  els.avatarMenu.setAttribute('aria-hidden', String(!willOpen));
+  els.avatarArrow.classList.toggle('is-open', willOpen);
+}
+
+els.avatarArrow.addEventListener('click', (e) => { e.stopPropagation(); toggleAvatarMenu(); });
+els.logoutBtn.addEventListener('click', () => { closeAvatarMenu(); logout(); });
+
 document.addEventListener('click', (e) => {
   if (!els.loginWrap.contains(e.target)) closeLoginMenu();
+  if (!els.avatarWrap.contains(e.target)) closeAvatarMenu();
 });
 
 // ===== 燃放烟花 =====
@@ -177,8 +193,6 @@ async function handleLaunch() {
     if (error) {
       console.error(error);
       showToast('保 存 失 败 · ' + error.message, 3000);
-    } else {
-      showToast('已 永 久 保 存');
     }
   } else {
     broadcastTempFirework(message, color, '游客');
@@ -188,6 +202,22 @@ async function handleLaunch() {
 els.launchBtn.addEventListener('click', handleLaunch);
 els.input.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') handleLaunch();
+});
+
+// ===== 图片烟花 =====
+els.imageInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    // 轮廓模式（人像推荐）vs 完整色彩模式
+    const edgeOnly = confirm('轮廓模式（人像 / 照片推荐）？\n\n确认 → 仅提取边缘轮廓\n取消 → 保留完整色彩');
+    const color = pickSceneColor();
+    await createFireworkFromImage(ev.target.result, color, edgeOnly);
+    els.imageInput.value = '';
+    showToast('图 像 烟 花 已 点 燃');
+  };
+  reader.readAsDataURL(file);
 });
 
 // ===== 订阅其他用户的烟花 =====

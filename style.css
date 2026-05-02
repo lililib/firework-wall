@@ -96,6 +96,8 @@ html, body {
   width: 100%;
   height: 100%;
   z-index: 2;
+  /* 黑色背景 = 透明，彩色粒子叠加到 #sky 上；与 destination-out 方案视觉等效但颜色正确 */
+  mix-blend-mode: screen;
 }
 #textCanvas { display: none; }
 
@@ -249,10 +251,65 @@ html, body {
   filter: none;
 }
 
+/* 头像区容器（登录后可见） */
+.avatar-wrap {
+  position: relative;
+  display: none;
+  align-items: center;
+  gap: 2px;
+}
+.avatar-wrap.visible { display: inline-flex; }
+
+.avatar-arrow {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--gold-3);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.3s var(--ease), transform 0.3s var(--ease);
+  opacity: 0.7;
+}
+.avatar-arrow:hover { opacity: 1; color: var(--gold-2); }
+.avatar-arrow.is-open { transform: rotate(180deg); color: var(--gold-2); opacity: 1; }
+.avatar-arrow svg { width: 12px; height: 12px; }
+
+.avatar-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+  padding: 8px;
+  min-width: 110px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-2);
+  border-top-color: var(--border-1);
+  border-radius: 14px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-deep);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+  transform-origin: top right;
+  pointer-events: none;
+  transition: all 0.25s var(--ease);
+}
+.avatar-menu.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
 /* 登录下拉容器 */
 .login-wrap {
   position: relative;
 }
+.login-wrap.is-hidden { display: none; }
 .login-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -484,6 +541,28 @@ html, body {
   box-shadow: 0 10px 30px rgba(224, 208, 176, 0.4);
 }
 .btn-launch:active { transform: translateY(0); }
+
+/* 图片烟花上传按钮 */
+.btn-img-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-1);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all 0.3s var(--ease);
+}
+.btn-img-upload svg { width: 20px; height: 20px; }
+.btn-img-upload:hover {
+  border-color: var(--gold-3);
+  color: var(--gold-3);
+  transform: translateY(-2px);
+}
 
 /* 提示文字：放在 input-wrap 内 absolute 定位，自然居中于输入框（而非整个 input-zone） */
 .input-hint {

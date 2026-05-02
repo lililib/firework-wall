@@ -36,8 +36,17 @@
       <span class="dot"></span>
       <span>在线 <span id="onlineCount">0</span></span>
     </div>
-    <div class="chip" id="loginChip">
-      <span class="muted">未登录</span>
+    <div class="avatar-wrap" id="avatarWrap">
+      <div class="chip" id="loginChip"></div>
+      <button class="avatar-arrow" id="avatarArrow" aria-label="账户菜单">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="avatar-menu" id="avatarMenu" aria-hidden="true">
+        <button class="login-option" id="logoutBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          登出
+        </button>
+      </div>
     </div>
     <div class="login-wrap" id="loginWrap">
       <button id="loginBtn" class="btn-login" data-action="login">登录</button>
@@ -96,6 +105,15 @@
       <span class="input-counter" id="inputCounter">0 / 10</span>
       <p class="input-hint" id="hint">未登录 · 仅本次广播　<a href="javascript:document.getElementById('loginBtn').click()">登录可永久留念 →</a></p>
     </div>
+    <!-- 图片烟花：上传本地图片 -->
+    <label class="btn-img-upload" id="imageUploadBtn" title="图片烟花" aria-label="上传图片烟花">
+      <input type="file" id="imageInput" accept="image/*" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </label>
     <button id="launchBtn" class="btn-launch">即 时 燃 放</button>
   </div>
 
