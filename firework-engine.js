@@ -294,9 +294,13 @@ class Particle {
         this.state = 'form';
       }
     } else if (this.state === 'form') {
-      this.x += (this.targetX - this.x) * 0.055; // 原 0.025，提速 2.2x
-      this.y += (this.targetY - this.y) * 0.055;
-      this.y += Math.sin(Date.now() / 200 + this.x) * 0.2;
+      const dx = this.targetX - this.x;
+      const dy = this.targetY - this.y;
+      this.vx = this.vx * 0.75 + dx * 0.015;
+      this.vy = this.vy * 0.75 + dy * 0.015;
+      this.x += this.vx;
+      this.y += this.vy;
+      this.y += Math.sin(Date.now() / 200 + this.x) * 0.1;
       this.life--;
       if (this.life <= 60) {
         this.state = 'fade';
