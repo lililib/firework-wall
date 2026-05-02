@@ -2,7 +2,7 @@
 // 主入口：连接所有模块、绑定 UI 事件
 // ============================================================
 import { supabase } from './supabase-client.js';
-import { login, logout, onAuthChange, getCurrentUser } from './auth.js';
+import { loginWithGitHub, loginWithGoogle, logout, onAuthChange, getCurrentUser } from './auth.js';
 import { subscribeFireworks, broadcastTempFirework, subscribePresence } from './realtime.js';
 import { initFireworkEngine, createFirework, setScene, pickSceneColor } from './firework-engine.js';
 import { replayAll, replayMine, loadMessageWall } from './replay.js';
@@ -23,6 +23,10 @@ const els = {
   inputCounter: $('inputCounter'),
   launchBtn: $('launchBtn'),
   loginBtn: $('loginBtn'),
+  loginWrap: $('loginWrap'),
+  loginMenu: $('loginMenu'),
+  loginGoogleBtn: $('loginGoogleBtn'),
+  loginGithubBtn: $('loginGithubBtn'),
   loginChip: $('loginChip'),
   onlineCount: $('onlineCount'),
   hint: $('hint'),
@@ -90,21 +94,22 @@ onAuthChange((user) => {
   els.loginChip.classList.toggle('is-hidden', !user);
 
   if (user) {
-    const name = user.user_metadata?.user_name || user.email || '已登录';
+    // Google 用 full_name，GitHub 用 user_name
+    const name = user.user_metadata?.user_name || user.user_metadata?.full_name || user.email || '已登录';
     const avatar = user.user_metadata?.avatar_url;
     els.loginChip.innerHTML = avatar
       ? `<img src="${avatar}" class="avatar" alt=""><span>${name}</span>`
       : `<span>${name}</span>`;
     els.loginBtn.textContent = '登出';
     els.loginBtn.dataset.action = 'logout';
+    closeLoginMenu();
     els.launchBtn.textContent = '燃 放 留 念';
     els.input.placeholder = '书 写 你 的 寄 语';
     els.replayMineBtn.removeAttribute('disabled');
     els.replayMineBtn.title = '重放自己发过的烟花';
     els.hint.style.display = 'none';
   } else {
-    // 未登录：chip 已通过 is-hidden 隐藏，避免与 "登录 GitHub" 按钮重复
-    els.loginBtn.textContent = '登录 GitHub';
+    els.loginBtn.textContent = '登录';
     els.loginBtn.dataset.action = 'login';
     els.launchBtn.textContent = '即 时 燃 放';
     els.input.placeholder = '书 写 你 的 寄 语';
@@ -114,10 +119,26 @@ onAuthChange((user) => {
   }
 });
 
-// ===== 登录/登出按钮 =====
-els.loginBtn.addEventListener('click', () => {
+// ===== 登录下拉菜单 =====
+function closeLoginMenu() {
+  els.loginMenu.classList.remove('open');
+  els.loginMenu.setAttribute('aria-hidden', 'true');
+}
+function toggleLoginMenu() {
+  const willOpen = !els.loginMenu.classList.contains('open');
+  els.loginMenu.classList.toggle('open', willOpen);
+  els.loginMenu.setAttribute('aria-hidden', String(!willOpen));
+}
+
+els.loginBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
   if (els.loginBtn.dataset.action === 'logout') logout();
-  else login();
+  else toggleLoginMenu();
+});
+els.loginGoogleBtn.addEventListener('click', () => { closeLoginMenu(); loginWithGoogle(); });
+els.loginGithubBtn.addEventListener('click', () => { closeLoginMenu(); loginWithGitHub(); });
+document.addEventListener('click', (e) => {
+  if (!els.loginWrap.contains(e.target)) closeLoginMenu();
 });
 
 // ===== 燃放烟花 =====
@@ -150,7 +171,7 @@ async function handleLaunch() {
       message,
       color,
       user_id: user.id,
-      username: user.user_metadata?.user_name || null,
+      username: user.user_metadata?.user_name || user.user_metadata?.full_name || null,
       avatar_url: user.user_metadata?.avatar_url || null,
     });
     if (error) {

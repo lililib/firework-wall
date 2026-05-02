@@ -1,6 +1,6 @@
 // ============================================================
-// 登录态管理（GitHub OAuth via Supabase Auth）
-// 公开 API: login(), logout(), onAuthChange(fn), getCurrentUser()
+// 登录态管理（GitHub / Google OAuth via Supabase Auth）
+// 公开 API: loginWithGitHub(), loginWithGoogle(), logout(), onAuthChange(fn), getCurrentUser()
 // ============================================================
 import { supabase, ensureConfigured } from './supabase-client.js';
 
@@ -23,17 +23,20 @@ export function getCurrentUser() {
   return currentUser;
 }
 
-export async function login() {
+async function signInWith(provider) {
   if (!ensureConfigured()) return;
   const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'github',
+    provider,
     options: { redirectTo: window.location.href },
   });
   if (error) {
-    console.error('登录失败:', error);
+    console.error(`${provider} 登录失败:`, error);
     alert('登录失败: ' + error.message);
   }
 }
+
+export const loginWithGitHub = () => signInWith('github');
+export const loginWithGoogle = () => signInWith('google');
 
 export async function logout() {
   if (!ensureConfigured()) return;

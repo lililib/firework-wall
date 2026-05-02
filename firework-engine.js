@@ -174,10 +174,10 @@ class Particle {
 
     this.friction = 0.92;
     this.gravity = 0.05;
-    this.life = 270;
-    this.maxLife = 270;
+    this.life = 320;
+    this.maxLife = 320;
     this.state = 'explode';
-    this.delay = Math.random() * 20;
+    this.delay = Math.random() * 40 + 20; // 20-60 帧，让爆炸扩散更充分
   }
 
   update() {
@@ -192,8 +192,8 @@ class Particle {
         this.state = 'form';
       }
     } else if (this.state === 'form') {
-      this.x += (this.targetX - this.x) * 0.05;
-      this.y += (this.targetY - this.y) * 0.05;
+      this.x += (this.targetX - this.x) * 0.025; // 0.05→0.025：聚形慢约 2 倍
+      this.y += (this.targetY - this.y) * 0.025;
       this.y += Math.sin(Date.now() / 200 + this.x) * 0.2;
       this.life--;
       if (this.life <= 30) this.state = 'fade';
