@@ -6,8 +6,8 @@ import { getCurrentUser } from './auth.js';
 import { createFirework } from './firework-engine.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const REPLAY_INTERVAL_MS = 600;
-const REPLAY_LIMIT = 200;
+const REPLAY_INTERVAL_MS = 600;  // 回放每发烟花的间隔（毫秒）/ Interval between replayed fireworks in ms
+const REPLAY_LIMIT       = 200;  // 单次回放最多加载条数 / Max records loaded per replay session
 
 let replaying = false;
 
@@ -88,7 +88,7 @@ export async function loadMessageWall() {
     .from('fireworks')
     .select('id, message, username, avatar_url, created_at')
     .order('created_at', { ascending: false })
-    .limit(100);
+    .limit(100); // 留言墙最多显示 100 条 / Max 100 entries shown in message wall
 
   if (error) {
     console.error(error);

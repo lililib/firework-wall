@@ -6,8 +6,8 @@
 // ============================================================
 import { supabase, ensureConfigured } from './supabase-client.js';
 
-const FEED_CHANNEL = 'firework-feed';
-const PRESENCE_CHANNEL = 'firework-presence';
+const FEED_CHANNEL     = 'firework-feed';     // 烟花实时广播频道（同时承载 DB 变更和 broadcast）/ Realtime channel for firework events
+const PRESENCE_CHANNEL = 'firework-presence'; // 在线人数统计频道 / Channel for online presence tracking
 
 let feedChannel = null;
 

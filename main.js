@@ -7,11 +7,12 @@ import { subscribeFireworks, broadcastTempFirework, subscribePresence } from './
 import { initFireworkEngine, createFirework, createFireworkFromImage, setScene, pickSceneColor, introFirework } from './firework-engine.js';
 import { replayAll, replayMine, loadMessageWall } from './replay.js';
 import { initThemeDock, getSavedSceneKey, getSceneByKey } from './theme-dock.js';
+import { toggle as toggleSound, isEnabled as isSoundEnabled } from './sound.js';
 
-const RATE_LIMIT_MS = 2000;
-const LOCAL_HISTORY_KEY = 'myFireworks';
-const LOCAL_HISTORY_MAX = 50;
-const MSG_MAX = 10;
+const RATE_LIMIT_MS     = 2000;        // 发射冷却时间（毫秒），防止刷屏 / Launch cooldown in ms
+const LOCAL_HISTORY_KEY = 'myFireworks'; // localStorage 本地历史存储键 / localStorage key for local history
+const LOCAL_HISTORY_MAX = 50;          // 本地历史最大保存条数 / Max local history entries to keep
+const MSG_MAX           = 10;          // 消息最大字符数 / Max message length in chars
 
 // ===== DOM =====
 const $ = (id) => document.getElementById(id);
@@ -46,6 +47,7 @@ const els = {
   themeDockBtn: $('themeDockBtn'),
   themeDock: $('themeDock'),
   imageInput: $('imageInput'),
+  soundBtn: $('soundBtn'),
 };
 
 // ===== Toast（必须在 initThemeDock 之前定义，否则 TDZ 报错会中止初始化）=====
@@ -60,7 +62,7 @@ function showToast(text, ms = 2000) {
 // ===== 初始化烟花引擎 =====
 initFireworkEngine(els.canvas, els.textCanvas);
 setScene(getSceneByKey(getSavedSceneKey()));
-setTimeout(introFirework, 600); // 进场烟花：页面加载后 0.6s 触发
+setTimeout(introFirework, 600); // 进场烟花延迟（600ms）/ Intro firework delay in ms
 
 // ===== 初始化场景切换 Dock =====
 let sceneInitialized = false;
@@ -303,6 +305,19 @@ async function openDrawer() {
 }
 function closeDrawer() { els.drawer.classList.remove('open'); }
 els.drawerCloseBtn.addEventListener('click', closeDrawer);
+
+// ===== 提示栏登录链接 =====
+$('hintLoginLink')?.addEventListener('click', () => els.loginBtn.click());
+
+// ===== 音效开关 =====
+function syncSoundBtn() {
+  const on = isSoundEnabled();
+  els.soundBtn.classList.toggle('muted', !on);
+  els.soundBtn.setAttribute('aria-label', on ? '关闭音效' : '开启音效');
+  els.soundBtn.setAttribute('title', on ? '关 闭 音 效' : '开 启 音 效');
+}
+els.soundBtn.addEventListener('click', () => { toggleSound(); syncSoundBtn(); });
+syncSoundBtn();
 
 // ===== 全局错误提示 =====
 if (!supabase) {

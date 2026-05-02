@@ -6,6 +6,9 @@
 // 公开 API: initThemeDock({ btn, dock, sky, onChange })
 // ============================================================
 
+// 场景配置列表 / Scene configuration list
+// starDensity: 星星数量，建议范围 60–260 / Number of stars, suggested range 60–260
+// starColor:   星星颜色（含透明度）/ Star color with opacity
 export const SCENES = [
   {
     key: 'gradient',
@@ -65,6 +68,7 @@ export const SCENES = [
   },
 ];
 
+// localStorage 场景偏好存储键 / localStorage key for persisting selected scene
 const STORAGE_KEY = 'fw_scene_key';
 
 export function getSavedSceneKey() {

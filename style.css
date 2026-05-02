@@ -249,6 +249,12 @@ html, body {
   filter: none;
 }
 
+/* 音效按钮：默认显示 on 图标，muted 时切换为 off */
+#soundBtn .icon-sound-off { display: none; }
+#soundBtn.muted .icon-sound-on  { display: none; }
+#soundBtn.muted .icon-sound-off { display: block; }
+#soundBtn.muted { opacity: 0.5; }
+
 /* 头像区容器（登录后可见） */
 .avatar-wrap {
   position: relative;
@@ -576,7 +582,8 @@ html, body {
   color: var(--text-3);
   pointer-events: none;
 }
-.input-hint a {
+.input-hint a,
+.input-hint .inline-link {
   color: var(--gold-3);
   text-decoration: none;
   border-bottom: 1px solid rgba(224, 208, 176, 0.3);
@@ -584,7 +591,18 @@ html, body {
   transition: color 0.3s var(--ease);
   pointer-events: auto;
 }
-.input-hint a:hover { color: var(--gold-1); border-bottom-color: var(--gold-2); }
+/* inline-link：去掉按钮默认样式，视觉同超链接 / Button styled as inline link */
+.inline-link {
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(224, 208, 176, 0.3);
+  padding: 0 0 1px;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.input-hint a:hover,
+.input-hint .inline-link:hover { color: var(--gold-1); border-bottom-color: var(--gold-2); }
 
 /* ---------- 右下场景切换 Dock ---------- */
 .theme-dock-container {

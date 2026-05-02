@@ -22,9 +22,9 @@ const isConfigured =
 export const supabase = isConfigured
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
+        persistSession: true,       // 持久化登录态到 localStorage / Persist session in localStorage
+        autoRefreshToken: true,     // 自动续期 token / Auto-refresh expired tokens
+        detectSessionInUrl: true,   // 从 OAuth 回调 URL 中解析 session / Parse session from OAuth redirect URL
       },
     })
   : null;
