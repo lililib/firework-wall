@@ -1,7 +1,8 @@
 // ============================================================
 // 场景切换 Dock
 // - 右下角圆形按钮 + 横向缩略图面板
-// - 切换时通知 firework-engine（背景 / 烟花调色板 / 星空密度）
+// - 切换时通知 firework-engine（背景 / 星空密度）
+// - 烟花颜色由 firework-engine 统一调色板控制，场景不再独立配置 palette
 // 公开 API: initThemeDock({ btn, dock, sky, onChange })
 // ============================================================
 
@@ -10,7 +11,6 @@ export const SCENES = [
     key: 'gradient',
     name: '暗夜渐变',
     bg: './assets/yyh/scenes/gradient_bg.png',
-    palette: ['#ff6b9d', '#c084fc', '#7dd3fc', '#fbbf24', '#f472b6'],
     starDensity: 150,
     starColor: 'rgba(255,255,255,0.9)',
   },
@@ -18,7 +18,6 @@ export const SCENES = [
     key: 'starry',
     name: '极简星空',
     bg: './assets/yyh/scenes/starry_bg.png',
-    palette: ['#ffffff', '#fef3c7', '#dbeafe', '#fbbf24', '#fde68a'],
     starDensity: 260,
     starColor: 'rgba(255,255,255,1)',
   },
@@ -26,7 +25,6 @@ export const SCENES = [
     key: 'realistic',
     name: '写实城市',
     bg: './assets/yyh/scenes/realistic_bg.png',
-    palette: ['#fb923c', '#facc15', '#ef4444', '#f97316', '#fbbf24'],
     starDensity: 60,
     starColor: 'rgba(255,220,180,0.7)',
   },
@@ -34,7 +32,6 @@ export const SCENES = [
     key: 'cyberpunk',
     name: '赛博朋克',
     bg: './assets/yyh/scenes/cyberpunk_bg.png',
-    palette: ['#00f3ff', '#ff00d4', '#a855f7', '#22d3ee', '#f472b6'],
     starDensity: 90,
     starColor: 'rgba(0,243,255,0.85)',
   },
@@ -42,7 +39,6 @@ export const SCENES = [
     key: 'aurora',
     name: '极光雪原',
     bg: './assets/yyh/scenes/aurora_bg.png',
-    palette: ['#86efac', '#67e8f9', '#a7f3d0', '#bae6fd', '#fde68a'],
     starDensity: 200,
     starColor: 'rgba(186,230,253,0.9)',
   },
@@ -50,7 +46,6 @@ export const SCENES = [
     key: 'moon',
     name: '海上明月',
     bg: './assets/yyh/scenes/moon_bg.png',
-    palette: ['#fef3c7', '#fbbf24', '#fde68a', '#fff7ed', '#fed7aa'],
     starDensity: 120,
     starColor: 'rgba(254,243,199,0.85)',
   },
@@ -58,7 +53,6 @@ export const SCENES = [
     key: 'papercut',
     name: '新年窗花',
     bg: './assets/yyh/scenes/papercut_bg.png',
-    palette: ['#dc2626', '#fbbf24', '#f97316', '#ef4444', '#facc15'],
     starDensity: 80,
     starColor: 'rgba(254,215,170,0.8)',
   },
@@ -66,7 +60,6 @@ export const SCENES = [
     key: 'ink',
     name: '水墨山水',
     bg: './assets/yyh/scenes/ink_bg.png',
-    palette: ['#e5e7eb', '#9ca3af', '#fef3c7', '#ffffff', '#d1d5db'],
     starDensity: 100,
     starColor: 'rgba(229,231,235,0.7)',
   },

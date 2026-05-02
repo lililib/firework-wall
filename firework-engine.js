@@ -22,10 +22,21 @@ const sparks    = [];   // 活跃余烬粒子
 let stars = [];
 const _sparkPool = []; // Spark 对象池
 
-/* ---------- 当前场景 ---------- */
+/* ---------- 统一调色板（对齐原网站固定 6 色 + 白色限频）---------- */
+const PALETTE = ['#ff0043', '#14fc56', '#1e7fff', '#e60aff', '#ffbf36', '#ffffff'];
+let _lastColor = '';
+
+export function pickSceneColor() {
+  let color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+  // 白色限频：抽到白色时 60% 概率重新抽，避免过多白色烟花
+  if (color === '#ffffff' && Math.random() < 0.6)
+    color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+  return (_lastColor = color);
+}
+
+/* ---------- 当前场景（仅控制星空样式，不再控制调色板）---------- */
 let currentScene = {
   key: 'default',
-  palette: ['#ff007f', '#ff7f00', '#ffe600', '#7dffae', '#7da8ff'],
   starDensity: 150,
   starColor: 'rgba(255,255,255,0.9)',
 };
@@ -35,22 +46,13 @@ export function setScene(scene) {
   rebuildStars();
 }
 
-export function pickSceneColor() {
-  const p = currentScene.palette;
-  return p[Math.floor(Math.random() * p.length)];
-}
-
 /* ---------- 画布 / 星空 ---------- */
 function resizeCanvas() {
   width  = window.innerWidth;
   height = window.innerHeight;
   canvas.width  = width;
   canvas.height = height;
-  // resize 后 canvas 内容被清除，重新填黑维持不透明背景
-  if (ctx) {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, width, height);
-  }
+  // canvas resize 后内容自动清空（透明），destination-out 方案不需要填黑
   rebuildStars();
 }
 
@@ -259,18 +261,18 @@ class Particle {
     this.color   = color;
     this.pixelColor = pixelColor; // 表情/图片模式下每粒子的真实像素颜色
 
-    // 爆炸初速度：使用 createBurst 提供的球面分布方向
-    const speed  = (Math.random() * 4 + 4) * (burstSpeedMult !== undefined ? burstSpeedMult : 1);
+    // 爆炸初速度：10-16 px/帧，比原来 4-8 大一倍，炸开半径更宽
+    const speed  = (Math.random() * 6 + 10) * (burstSpeedMult !== undefined ? burstSpeedMult : 1);
     const angle  = burstAngle !== undefined ? burstAngle : Math.random() * PI_2;
     this.vx      = Math.sin(angle) * speed;
     this.vy      = Math.cos(angle) * speed;
 
     this.friction  = 0.92;
     this.gravity   = 0.05;
-    this.life      = 320;
-    this.maxLife   = 320;
+    this.life      = 160;
+    this.maxLife   = 160;
     this.state     = 'explode';
-    this.delay     = Math.random() * 40 + 20;
+    this.delay     = Math.random() * 10 + 28; // 28-38 帧后收敛，等粒子完全炸开再聚拢
 
     // 余烬参数（glitter: medium 风格）
     this.sparkFreq  = (30 + Math.random() * 30) | 0;
@@ -287,15 +289,20 @@ class Particle {
       this.x  += this.vx;
       this.y  += this.vy;
       this.delay--;
-      if (this.delay <= 0 && Math.abs(this.vx) < 1 && Math.abs(this.vy) < 1) {
+      if (this.delay <= 0) {
+        // 去掉速度<1的等待条件，delay 倒计时结束就立即收敛
         this.state = 'form';
       }
     } else if (this.state === 'form') {
-      this.x += (this.targetX - this.x) * 0.025;
-      this.y += (this.targetY - this.y) * 0.025;
+      this.x += (this.targetX - this.x) * 0.055; // 原 0.025，提速 2.2x
+      this.y += (this.targetY - this.y) * 0.055;
       this.y += Math.sin(Date.now() / 200 + this.x) * 0.2;
       this.life--;
-      if (this.life <= 30) this.state = 'fade';
+      if (this.life <= 60) {
+        this.state = 'fade';
+        this.vx = (Math.random() - 0.5) * 1.2; // 随机横向初速，粒子散开掉落
+        this.vy = Math.random() * 0.3;          // 微小初始向下速度
+      }
 
       // 发射余烬 spark
       this.sparkTimer--;
@@ -310,7 +317,11 @@ class Particle {
         sparks.push(sp);
       }
     } else {
-      this.y    += 0.5;
+      // 重力加速掉落 + 颜色随 life/maxLife 自然变浅
+      this.vy += 0.08;
+      this.vx *= 0.98;
+      this.x  += this.vx;
+      this.y  += this.vy;
       this.life--;
     }
     return this.life > 0;
@@ -343,9 +354,12 @@ class Firework {
     this.trail   = [];
 
     // 螺旋晃动参数（移植自 CodePen comet.spinRadius / spinSpeed）
-    this.spinRadius = 0.5 + Math.random() * 1.0;   // 侧向振幅 px
-    this.spinAngle  = Math.random() * PI_2;          // 初始相位随机
-    this.spinSpeed  = 0.3 + Math.random() * 0.5;    // 角速度 rad/帧（对应 CodePen 0.8）
+    this.spinRadius = 0.5 + Math.random() * 1.0;
+    this.spinAngle  = Math.random() * PI_2;
+    this.spinSpeed  = 0.3 + Math.random() * 0.5;
+
+    // 炸开半径随机缩放：0.6x ~ 1.8x，偏向大值，每发烟花有大有小
+    this.burstScale = 0.6 + Math.pow(Math.random(), 0.6) * 1.2;
   }
 
   update() {
@@ -400,8 +414,24 @@ class Firework {
       }
     }
 
+    // 随机爆炸形态（参考原网站 ring / sphere 两种方式）
+    const burstType = Math.random();
     const dirs = [];
-    createBurst(targets.length, (angle, speedMult) => dirs.push({ angle, speedMult }));
+
+    if (burstType < 0.3) {
+      // 环形炸开（ring）
+      const ringOffset = Math.random() * PI_2;
+      const tilt       = Math.pow(Math.random(), 2) * 0.8 + 0.2;
+      for (let i = 0; i < targets.length; i++) {
+        const a = (i / targets.length) * PI_2 + ringOffset;
+        dirs.push({ angle: a, speedMult: (tilt + Math.random() * 0.2) * this.burstScale });
+      }
+    } else {
+      // 球面均匀炸开（默认）
+      createBurst(targets.length, (angle, speedMult) =>
+        dirs.push({ angle, speedMult: speedMult * this.burstScale })
+      );
+    }
 
     for (let i = 0; i < targets.length; i++) {
       const d = dirs[i % dirs.length];
@@ -420,13 +450,13 @@ class Firework {
 function animate() {
   requestAnimationFrame(animate);
 
-  // source-over + 黑色填充 = 轨迹逐帧衰减到黑色（参考 Firework_Simulator：trailsCtx 方案）
-  // 黑色背景 + lighten 绘制 = 颜色不叠加变白；CSS mix-blend-mode:screen 让黑色透明露出 #sky
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+  // destination-out：每帧用半透明黑色"擦除" canvas alpha，粒子轨迹逐渐消散到透明
+  // 背景图通过透明区域自然透出，无需 CSS mix-blend-mode
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.175)';
   ctx.fillRect(0, 0, width, height);
 
-  // lighten = max(src, dst)，在黑色背景上同色重叠不会累加变白
+  // lighten = max(src, dst)，多粒子叠加不累加变白
   ctx.globalCompositeOperation = 'lighten';
   drawStars();
 
@@ -457,9 +487,6 @@ export function initFireworkEngine(canvasEl, textCanvasEl) {
   textCtx    = textCanvas.getContext('2d', { willReadFrequently: true });
 
   resizeCanvas();
-  // 初始填黑，确保 lighten + screen 方案从第一帧就有正确背景
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, width, height);
   window.addEventListener('resize', resizeCanvas);
   animate();
 }

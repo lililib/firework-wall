@@ -96,8 +96,6 @@ html, body {
   width: 100%;
   height: 100%;
   z-index: 2;
-  /* 黑色背景 = 透明，彩色粒子叠加到 #sky 上；与 destination-out 方案视觉等效但颜色正确 */
-  mix-blend-mode: screen;
 }
 #textCanvas { display: none; }
 
