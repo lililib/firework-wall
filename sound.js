@@ -24,7 +24,17 @@ function getCtx() {
   return _ctx;
 }
 
-// 预加载所有音频 buffer
+// 在用户首次交互（pointerdown 早于 click）时提前解锁 AudioContext
+// Pre-unlock AudioContext on first user interaction (pointerdown fires before click)
+// 避免后续在 rAF 回调中播放时因上下文 suspended 而静默失败
+// Prevents silent failures when sounds are triggered from rAF (non-gesture) callbacks
+function _earlyUnlock() {
+  const ac = getCtx();
+  if (ac.state === 'suspended') ac.resume();
+}
+document.addEventListener('pointerdown', _earlyUnlock, { once: true });
+
+// 预加载所有音频 buffer / Preload all audio buffers
 (async () => {
   try {
     const ac = getCtx();
@@ -48,8 +58,12 @@ export function play(type) {
   if (!bufs?.length) return;
   const src = SOURCES[type];
   const ac = getCtx();
-  // 移动端 AudioContext 首次需要用户手势后才能 resume / Mobile requires user gesture to resume AudioContext
-  if (ac.state === 'suspended') ac.resume();
+  // 上下文未就绪时尝试 resume；若仍未 running 则跳过此次播放（首次手势前的进场烟花不播声）
+  // Try to resume if not running; skip if still suspended (e.g., intro firework before any user gesture)
+  if (ac.state === 'suspended') {
+    ac.resume();
+    return; // 等待下次调用时上下文已就绪 / Wait for context to be running on next call
+  }
 
   const buf = bufs[Math.floor(Math.random() * bufs.length)];
   const [min, max] = src.rateRange;
